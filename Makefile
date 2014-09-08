@@ -380,7 +380,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
-		   -mtune=cortex-a15 -mfpu=neon \
+		   -mtune=cortex-a15 -mfpu=neon-vfpv4 \
 		   -ftree-vectorize
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
