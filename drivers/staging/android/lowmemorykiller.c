@@ -41,11 +41,9 @@
 #include <linux/memory_hotplug.h>
 #include <linux/ratelimit.h>
 
-#if defined(CONFIG_ZRAM_FOR_ANDROID) || defined(CONFIG_ZSWAP)
+#ifdef CONFIG_ZRAM_FOR_ANDROID
 #include <linux/fs.h>
 #include <linux/swap.h>
-#endif
-#ifdef CONFIG_ZRAM_FOR_ANDROID
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/mm_inline.h>
@@ -231,9 +229,9 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 				global_page_state(NR_FREE_CMA_PAGES);
 #endif
 	int other_file = global_page_state(NR_FILE_PAGES) - global_page_state(NR_SHMEM);
-#if defined(CONFIG_ZRAM_FOR_ANDROID) || defined(CONFIG_ZSWAP)
+#ifdef CONFIG_ZRAM_FOR_ANDROID
 	other_file -= total_swapcache_pages;
-#endif /* CONFIG_ZRAM_FOR_ANDROID || CONFIG_ZSWAP */
+#endif /* CONFIG_ZRAM_FOR_ANDROID */
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
 	if (lowmem_minfree_size < array_size)

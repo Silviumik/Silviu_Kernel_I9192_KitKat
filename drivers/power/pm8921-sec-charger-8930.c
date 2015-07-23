@@ -1830,6 +1830,8 @@ static int sec_fg_get_scaled_capacity(
 	scaled_soc = (raw_soc < chip->batt_pdata->capacity_min) ?
 		0 : ((raw_soc - chip->batt_pdata->capacity_min) * 1000 /
 		(chip->capacity_max - chip->batt_pdata->capacity_min));
+	if(scaled_soc > 1009)
+		scaled_soc = 1009;
 
 	pr_debug("%s: scaled capacity (%d.%d)\n",
 		__func__, scaled_soc/10, scaled_soc%10);
@@ -1841,7 +1843,6 @@ static int sec_fg_get_scaled_capacity(
 static int sec_fg_calculate_dynamic_scale(
 			struct pm8921_chg_chip *chip, int raw_soc)
 {
-	raw_soc += 10;
 	if (raw_soc <
 		chip->batt_pdata->capacity_max -
 		chip->batt_pdata->capacity_max_margin)
@@ -2637,8 +2638,6 @@ static int pm_batt_power_set_property(struct power_supply *psy,
 	struct pm8921_chg_chip *chip = container_of(psy, struct pm8921_chg_chip,
 								batt_psy);
 	enum cable_type_t new_cable_type;
-	int batt_capacity;
-
 	if (!chip->dev) {
 		pr_err("called before init\n");
 		goto error_check;
@@ -2657,11 +2656,6 @@ static int pm_batt_power_set_property(struct power_supply *psy,
 				break;
 			}
 #endif
-			if (chip->batt_status == POWER_SUPPLY_STATUS_FULL) {
-				batt_capacity = get_prop_batt_capacity(chip);
-				sec_fg_calculate_dynamic_scale(chip,
-					chip->capacity_raw * 10);
-			}
 			new_cable_type = CABLE_TYPE_NONE;
 			break;
 		case POWER_SUPPLY_TYPE_MAINS:
@@ -3294,13 +3288,8 @@ static void __pm8921_charger_vbus_draw(unsigned int mA)
 
 		/* Check if IUSB_FINE_RES is available */
 		while ((usb_ma_table[i].value & PM8917_IUSB_FINE_RES)
-				&& !the_chip->iusb_fine_res) {
-			if (i>0)
-				i--;
-			else
-			break;
-        }				
-			
+				&& !the_chip->iusb_fine_res)
+			i--;
 		if (i < 0)
 			i = 0;
 		rc = pm_chg_iusbmax_set(the_chip, i);
@@ -3653,6 +3642,9 @@ static void handle_cable_insertion_removal(struct pm8921_chg_chip *chip)
 
 	switch (chip->cable_type) {
 	case CABLE_TYPE_NONE:
+		if (chip->batt_status == POWER_SUPPLY_STATUS_FULL)
+			sec_fg_calculate_dynamic_scale(chip, chip->capacity_raw * 10);
+			/* break is not need */
 	case CABLE_TYPE_INCOMPATIBLE:
 #if defined(CONFIG_WIRELESS_CHARGING)
 		gpio_set_value(chip->wpc_acok, WPC_ACOK_ENABLE);
@@ -4703,19 +4695,6 @@ static void update_heartbeat(struct work_struct *work)
 	int batt_capacity;
 	int fsm_state;
 
-#if defined(CONFIG_MACH_SERRANO_BMC)
-/* Qualcomm debug patch start*/
-static int instances_count =0;
-
-instances_count ++; // increment by 1
-
-if(instances_count > 1)
-pr_err("update_heartbeat Called in parallel !!! : instances_count = %d", instances_count );
-
-/* Qualcomm debug patch end */
-
-#endif
-
 	if (chip->is_in_sleep)
 		chip->is_in_sleep = false;
 
@@ -4756,9 +4735,10 @@ pr_err("update_heartbeat Called in parallel !!! : instances_count = %d", instanc
 	pr_info("health(%d),stat(%d),chgen(%d),fsm(%d),cable(%d),extchg(%d)\n",
 		chip->batt_health, chip->batt_status, chip->charging_enabled,
 		fsm_state, chip->cable_type, chip->ext_charging);
-	pr_info("soc(%d/%d), i(%d), temp(%d), batt(%d), absexpr(%d), siop(%d)\n",
+	pr_info("soc(%d/%d), v(%d), i(%d), temp(%d), batt(%d), absexpr(%d), siop(%d)\n",
 		batt_capacity,
 		chip->capacity_raw,
+		get_prop_battery_uvolts(chip),
 		get_prop_batt_current(chip),
 		chip->batt_temp, chip->batt_present, chip->is_chgtime_expired,
 		chip->siop_level);
@@ -4785,21 +4765,6 @@ pr_err("update_heartbeat Called in parallel !!! : instances_count = %d", instanc
 	}
 #endif
 	wake_unlock(&chip->monitor_wake_lock);
-
-#if defined(CONFIG_MACH_SERRANO_BMC)
-
-/* Qualcomm debug patch start */
-instances_count --; // decrement by 1
-
-if(instances_count != 0)
-pr_err("update_heartbeat Called in parallel !!! ");
-
-if(instances_count < 0)
-pr_err("-ive instance count: This case is likely, still kept it to be sure ");
-
-/* Qualcomm debug patch end */
-
-#endif
 }
 #define VDD_LOOP_ACTIVE_BIT	BIT(3)
 #define VDD_MAX_INCREASE_MV	400

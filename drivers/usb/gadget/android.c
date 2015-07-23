@@ -1528,29 +1528,12 @@ static ssize_t rndis_ethaddr_store(struct device *dev,
 	struct android_usb_function *f = dev_get_drvdata(dev);
 	struct rndis_function_config *rndis = f->config;
 
-#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
-	int i;
-	char *src;
-	for (i = 0; i < ETH_ALEN; i++)
-			rndis->ethaddr[i] = 0;
-	/* create a fake MAC address from our serial number.
-	 * first byte is 0x02 to signify locally administered.
-	 */
-	rndis->ethaddr[0] = 0x02;
-	src = serial_string;
-	for (i = 0; (i < 256) && *src; i++) {
-		/* XOR the USB serial across the remaining bytes */
-		rndis->ethaddr[i % (ETH_ALEN - 1) + 1] ^= *src++;
-	}
-	return size;
-#else
 	if (sscanf(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			(int *)&rndis->ethaddr[0], (int *)&rndis->ethaddr[1],
-			(int *)&rndis->ethaddr[2], (int *)&rndis->ethaddr[3],
-			(int *)&rndis->ethaddr[4], (int *)&rndis->ethaddr[5]) == 6)
+		    (int *)&rndis->ethaddr[0], (int *)&rndis->ethaddr[1],
+		    (int *)&rndis->ethaddr[2], (int *)&rndis->ethaddr[3],
+		    (int *)&rndis->ethaddr[4], (int *)&rndis->ethaddr[5]) == 6)
 		return size;
 	return -EINVAL;
-#endif
 }
 
 static DEVICE_ATTR(ethaddr, S_IRUGO | S_IWUSR, rndis_ethaddr_show,
